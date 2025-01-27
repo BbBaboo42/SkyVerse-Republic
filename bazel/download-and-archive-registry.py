@@ -17,18 +17,21 @@ TARS_DIR = Path('tars')
 
 def setup_registry():
     if not Path('bazel-central-registry').exists():
+        print('Cloning bazel-central-registry...')
         Repo.clone_from(
             'https://github.com/bazelbuild/bazel-central-registry.git',
             'bazel-central-registry'
         )
         return
 
+    print('Pulling latest commits from bazel-central-registry\'s main...')
     repo = Repo('bazel-central-registry')
     repo.git.checkout('main')
     repo.remotes.origin.pull()
 
 
 def get_module_urls() -> list:
+    print('Collecting src URLs from registry...')
     bazel_module_urls = subprocess.run(
         ['bazel', 'run', '//tools:print_all_src_urls'],
         capture_output=True,
@@ -40,10 +43,12 @@ def get_module_urls() -> list:
 
 def download_urls(path: Path, urls: list) -> list:
     downloaded_urls = []
+    download_path = Path(path, 'downloads')
 
+    print(f'Downloading files to {download_path}:')
     for module_url in alive_it(urls):
         module_path = Path(
-            path, 'downloads', f'{urlparse(module_url).netloc}/{urlparse(module_url).path[1:]}')
+            download_path, f'{urlparse(module_url).netloc}/{urlparse(module_url).path[1:]}')
         os.makedirs(module_path.parent, exist_ok=True)
         # try:
         urllib.request.urlretrieve(module_url, module_path)
@@ -55,15 +60,22 @@ def download_urls(path: Path, urls: list) -> list:
 
 
 def tar_all(path: Path) -> None:
+    tar_path = Path(TARS_DIR, f'{path.name}.tar.gz')
+
+    print(f'Creating tar.gz archive with downloads: {tar_path}')
+
     if not Path(path, 'bazel-central-registry').exists():
-        shutil.copytree('bazel-central-registry', Path(path, 'bazel-central-registry'))
+        shutil.copytree('bazel-central-registry',
+                        Path(path, 'bazel-central-registry'))
 
     os.makedirs(TARS_DIR, exist_ok=True)
-    with tarfile.open(Path(TARS_DIR, f'{path.name}.tar.gz'), 'w:gz') as tar:
+    with tarfile.open(tar_path, 'w:gz') as tar:
         tar.add(path, arcname=path.name)
 
 
 def update_downloaded(path: Path, downloaded_urls: list) -> None:
+    print('Logging downloaded file URLs to prevent redownloads')
+
     with open(Path(path, 'downloaded_urls.txt'), 'a+') as f:
         f.write('\n'.join(downloaded_urls) + '\n')
 
