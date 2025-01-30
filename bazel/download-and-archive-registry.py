@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import argparse
 import os
 import shutil
 import subprocess
@@ -90,10 +91,16 @@ def subtract_downloaded(module_urls: list) -> list:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--full-download', action='store_true', help='Should you download everything?')
+    args = parser.parse_args()
+
     setup_registry()
 
     module_urls = get_module_urls()
-    module_urls = subtract_downloaded(module_urls)
+
+    if not args.full_download:
+        module_urls = subtract_downloaded(module_urls)
 
     if not module_urls:
         print('No new downloads were found. Exiting...')
