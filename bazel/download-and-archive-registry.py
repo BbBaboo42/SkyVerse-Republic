@@ -51,11 +51,13 @@ def download_urls(path: Path, urls: list) -> list:
         module_path = Path(
             download_path, f'{urlparse(module_url).netloc}/{urlparse(module_url).path[1:]}')
         os.makedirs(module_path.parent, exist_ok=True)
-        # try:
-        urllib.request.urlretrieve(module_url, module_path)
+
+        try:
+            urllib.request.urlretrieve(module_url, module_path)
+        except:
+            print(f'couldn\'t download {module_url}')
+
         downloaded_urls.append(module_url)
-        # except:
-        #     print(f'couldn\'t download {module_url}')
 
     return downloaded_urls
 
