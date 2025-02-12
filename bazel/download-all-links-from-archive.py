@@ -27,11 +27,19 @@ def download_links(links: List[str], download_dir: Path) -> None:
 
 def get_links_from_text(text: str) -> List[str]:
     parsed_text = CommonRegex(text)
-    return [url for url in parsed_text.links if (url.startswith('http://') or url.startswith('https://'))]
+    parsed_links = parsed_text.links
+
+    if not isinstance(parsed_links, list):
+        print(f'Error in parsing links!\n{parsed_links}')
+        return []
+
+    return [url for url in parsed_links if (url.startswith('http://') or url.startswith('https://'))]
 
 
 def get_links_from_tar(file: Path) -> List[str]:
     links = []
+
+    print(f'Collecting links from {file}')
 
     with tarfile.open(file, 'r:gz') as tar:
         for member in tar.getmembers():
@@ -41,9 +49,19 @@ def get_links_from_tar(file: Path) -> List[str]:
             file_content = tar.extractfile(member)
 
             if not file_content:
+                print(f'File seems to be empty: {member.name}')
                 continue
 
-            text = file_content.read().decode('utf-8')
+            if member.size > 20000:
+                print(f'File is too large: {member.name}')
+                continue
+        
+            try:
+                text = file_content.read().decode('utf-8')
+            except:
+                print(f'Failed reading from file: {member.name}')
+                continue
+
             links.extend(get_links_from_text(text))
 
             links[:] = list(set(links))
@@ -51,6 +69,8 @@ def get_links_from_tar(file: Path) -> List[str]:
     if len(links) > 100:
         print(f'{file.name}: Found more than 100 links ({len(links)}), skipping...')
         return []
+    
+    print(f'Found {len(links)} links')
 
     return links
 
@@ -70,14 +90,13 @@ def main():
     args = parser.parse_args()
 
     downloads_dir = Path(
-        DOWNLOADS_DIR, f'{datetime.now().strftime("%Y%m%d%H")}-deps')
+        DOWNLOADS_DIR, f'deps-{datetime.now().strftime("%Y%m%d%H")}')
     os.makedirs(downloads_dir, exist_ok=True)
 
     if not args.path.is_dir():
         if not args.path.name.endswith('.tar.gz'):
             raise TypeError('Only directories or .tar.gz files are supported')
 
-        print(f'Collecting links from {args.path}')
         links = get_links_from_tar(args.path)
 
         print(f'Downloading links from {args.path}')
