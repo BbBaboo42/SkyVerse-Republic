@@ -97,20 +97,29 @@ def main():
         if not args.path.name.endswith('.tar.gz'):
             raise TypeError('Only directories or .tar.gz files are supported')
 
+        print(f'Collecting links from {args.path}')    
         links = get_links_from_tar(args.path)
 
         print(f'Downloading links from {args.path}')
-        download_links(links, downloads_dir)
+        download_links(list(set(links)), downloads_dir)
         return
 
     links = []
 
     print(f'Collecting links from all archives in {args.path}:')
     for file in alive_it(args.path.rglob('*.tar.gz')):
-        links.extend(get_links_from_tar(file))
+        try:
+            new_links = get_links_from_tar(file)
+        except:
+            print(f'Failed collecting links from {file}')
+        
+        links.append(new_links)
+        with open(Path(DOWNLOADS_DIR, 'collected_urls.txt'), 'a+') as f:
+            f.write('\n'.join(new_links) + '\n')
+            
 
     print(f'Downloading found links:')
-    download_links(set(links), downloads_dir)
+    download_links(list(set(links)), downloads_dir)
 
     tar_all(downloads_dir)
 
